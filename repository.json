@@ -1,0 +1,36 @@
+{
+    "$schema": "https://go.kicad.org/pcm/schemas/v1",
+    "name": "jonasnic KiCad Addons",
+    "maintainer": {
+        "name": "jonasnic",
+        "contact": {
+            "github": "https://github.com/jonasnic"
+        }
+    },
+    "packages": [
+        {
+            "$schema": "https://go.kicad.org/pcm/schemas/v1",
+            "name": "EasyEDA to KiCad Importer",
+            "description": "Import LCSC/EasyEDA components (symbol, footprint, 3D model) into your KiCad library",
+            "description_full": "A KiCad plugin that lets you paste a LCSC or JLCPCB component ID (e.g. C294018) and automatically downloads and imports the schematic symbol, PCB footprint, and 3D model into your KiCad library. Powered by the easyeda2kicad open-source tool. The plugin installs easyeda2kicad automatically on first use if it is not already present.",
+            "identifier": "com.github.jonasnic.easyeda2kicad_addon",
+            "type": "plugin",
+            "author": {
+                "name": "jonasnic"
+            },
+            "license": "MIT",
+            "resources": {
+                "homepage": "https://github.com/jonasnic/Kicad_easyead2kicad_addon",
+                "icon": "https://raw.githubusercontent.com/jonasnic/Kicad_easyead2kicad_addon/main/resources/icon.png"
+            },
+            "versions": [
+                {
+                    "version": "1.0.0",
+                    "status": "stable",
+                    "kicad_version": "6.0",
+                    "download_url": "https://github.com/jonasnic/Kicad_easyead2kicad_addon/releases/download/v1.0.0/easyeda2kicad_addon-v1.0.0.zip"
+                }
+            ]
+        }
+    ]
+}
