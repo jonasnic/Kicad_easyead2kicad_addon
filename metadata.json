@@ -20,7 +20,8 @@
                     "version": "1.0.0",
                     "status": "stable",
                     "kicad_version": "6.0",
-                    "download_url": "https://github.com/jonasnic/Kicad_easyead2kicad_addon/archive/refs/tags/v1.0.0.zip"
+                    "download_url": "https://github.com/jonasnic/Kicad_easyead2kicad_addon/archive/refs/tags/v1.0.0.zip",
+                    "update_timestamp": 1779926400
                 }
             ]
         }
