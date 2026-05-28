@@ -128,5 +128,5 @@ MIT
 - The PCM repository index lives at [jonasnic/Kicad-plugins](https://github.com/jonasnic/Kicad-plugins). That is the URL users add to KiCad PCM.
 - For each release, upload a package asset named `easyeda2kicad_addon-v<version>.zip` to this repo's GitHub Releases.
 - Update `metadata.json` here with the new version and `download_url`, then update the `sha256` and `update_timestamp` in `Kicad-plugins/repository.json` to match.
-  - (Get-FileHash .\metadata.json -Algorithm SHA256).Hash
+  - (Get-FileHash .\metadata.json -Algorithm SHA256).Hash.ToLower()
   - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
