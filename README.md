@@ -1,16 +1,16 @@
 # EasyEDA to KiCad – KiCad Addon
 
-A **KiCad Plugin and Content Manager (PCM) addon** that lets you import any component from [LCSC](https://www.lcsc.com/) / [JLCPCB](https://jlcpcb.com/) directly into your KiCad library.
+A **KiCad Plugin and Content Manager (PCM) addon** for importing **LCSC** ([lcsc.com](https://www.lcsc.com/)) and **JLCPCB** ([jlcpcb.com](https://jlcpcb.com/)) parts into your KiCad libraries.
 
-Just paste the component ID (e.g. `C294018`) and the plugin downloads and adds the **schematic symbol**, **PCB footprint**, and **3D model** in one click.
+Paste a part ID such as `C294018` and the plugin imports the **schematic symbol**, **PCB footprint**, and **3D model** in one step.
 
-Powered by the open-source [easyeda2kicad](https://github.com/uPesy/easyeda2kicad.py) project, which is installed automatically on first use.
+The addon uses the open-source [easyeda2kicad](https://github.com/uPesy/easyeda2kicad.py) tool as its backend, which is installed automatically on first use.
 
 ---
 
 ## Features
 
-- Paste a LCSC / JLCPCB component ID (e.g. `C2040`, `C294018`) and click **Import**
+- Import LCSC ([lcsc.com](https://www.lcsc.com/)) / JLCPCB ([jlcpcb.com](https://jlcpcb.com/)) parts by part number, e.g. `C2040` or `C294018`
 - Checkboxes to choose what to import: **Symbol**, **Footprint**, **3D Model** — or tick **Full** to get all three
 - Configurable output library folder and library name
 - Quick path buttons for **Global** and **Project** output locations
@@ -18,7 +18,7 @@ Powered by the open-source [easyeda2kicad](https://github.com/uPesy/easyeda2kica
 - Optional auto-create for missing output folders (enabled by default)
 - **Overwrite** option to update an already-imported component
 - Coloured log output for easy troubleshooting
-- **Self-contained**: automatically installs `easyeda2kicad` via pip on first launch if not already present
+- **Self-contained**: automatically installs the `easyeda2kicad` backend on first launch if not already present
 
 ---
 
@@ -47,9 +47,6 @@ This plugin is distributed through the **[JonasNic-Kicad-plugins](https://github
    - **macOS**: `~/Library/Preferences/kicad/<version>/scripting/plugins/`
 3. Restart KiCad
 
-Tip: for local development, use a directory junction/symlink so KiCad loads your
-working tree directly instead of copying files each time.
-
 ---
 
 ## First-time use
@@ -64,16 +61,17 @@ An internet connection is required on first launch.
 1. Open KiCad **PCB Editor**
 2. Click **Tools → External Plugins → EasyEDA to KiCad**  
    (or use the toolbar button if visible)
-3. Enter a LCSC / JLCPCB component ID in the **Component ID** field
+3. Enter an **LCSC / JLCPCB part number** in the **Component ID** field
 4. Select what you want to import using the checkboxes
 5. Set the output folder and library name:
    - use **Use Global** for a shared user library folder
    - use **Use Project** for project-local output (when project path is detected)
    - keep **Create missing output folder(s)** enabled to auto-create folders
 6. Click **Import**
+7. make sure the library is included in both symbol library and footprint library
 
 Note for KiCad 10: this plugin is currently verified to appear in **PCB Editor**.
-Some installations do not expose the same External Plugins path in Schematic Editor.
+ not expose the same External Plugins path in Schematic Editor.
 
 The imported library files will be placed in:
 
@@ -98,7 +96,7 @@ This file is included in the addon root and in packaged releases.
 
 In Eeschema, add/select this script in the netlist/BOM script tool, then run it.
 The netlist/BOM input/output arguments are ignored by this launcher; it only
-opens the EasyEDA importer dialog.
+opens the LCSC/JLCPCB part importer dialog.
 
 ---
 
@@ -136,7 +134,7 @@ Kicad_easyead2kicad_addon/
 
 ## Credits
 
-- Component data powered by [EasyEDA](https://easyeda.com/) / [LCSC](https://www.lcsc.com/)
+- Component data is imported from [LCSC](https://www.lcsc.com/) / [JLCPCB](https://jlcpcb.com/)
 - Conversion library: [easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py) by uPesy
 
 ## License
