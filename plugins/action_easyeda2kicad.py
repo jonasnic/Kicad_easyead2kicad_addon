@@ -1,4 +1,5 @@
 """
+Hi!
 EasyEDA to KiCad – ActionPlugin
 Integrates easyeda2kicad into KiCad as a PCB-editor action plugin.
 """
