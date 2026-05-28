@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -19,6 +20,36 @@ import wx.adv
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OUTPUT = str(Path.home() / "Documents" / "KiCad" / "easyeda2kicad")
+
+
+def _resolve_python_executable() -> str:
+    """Return a usable Python interpreter path for subprocess invocations."""
+    candidates: list[str] = []
+
+    for attr in ("executable", "_base_executable"):
+        value = getattr(sys, attr, "")
+        if isinstance(value, str) and value:
+            candidates.append(value)
+
+    exe_dir = os.path.dirname(sys.executable) if sys.executable else ""
+    if exe_dir:
+        candidates.append(os.path.join(exe_dir, "python.exe"))
+        candidates.append(os.path.join(exe_dir, "python3.exe"))
+
+    for name in ("python", "python3"):
+        which_path = shutil.which(name)
+        if which_path:
+            candidates.append(which_path)
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        base = os.path.basename(candidate).lower()
+        if base.startswith("python") and os.path.exists(candidate):
+            return candidate
+
+    # Last resort for environments where PATH lookup is the only option.
+    return "python"
 
 
 class _TextCtrlLogHandler(logging.Handler):
@@ -50,7 +81,7 @@ class _TextCtrlLogHandler(logging.Handler):
 class EasyEDA2KiCadDialog(wx.Dialog):
     """Main import dialog for the EasyEDA-to-KiCad addon."""
 
-    def __init__(self, parent: wx.Window | None) -> None:
+    def __init__(self, parent: wx.Window | None, python_executable: str | None = None) -> None:
         super().__init__(
             parent,
             title="EasyEDA to KiCad Importer",
@@ -58,6 +89,7 @@ class EasyEDA2KiCadDialog(wx.Dialog):
             size=(560, 560),
         )
         self._log_handler: _TextCtrlLogHandler | None = None
+        self._python_executable = python_executable or _resolve_python_executable()
         self._build_ui()
         self.Centre()
 
@@ -270,9 +302,10 @@ class EasyEDA2KiCadDialog(wx.Dialog):
     ) -> None:
         try:
             output_path = str(Path(folder) / lib_name)
+            python_exe = self._python_executable
 
             cmd: list[str] = [
-                sys.executable,
+                python_exe,
                 "-m",
                 "easyeda2kicad",
                 f"--lcsc_id={lcsc_id}",
@@ -322,7 +355,7 @@ class EasyEDA2KiCadDialog(wx.Dialog):
             wx.CallAfter(
                 self._log,
                 "easyeda2kicad is not installed or not accessible via the current "
-                f"Python interpreter ({sys.executable}).\n"
+                f"Python interpreter ({python_exe}).\n"
                 "Try restarting KiCad after installing:  pip install easyeda2kicad",
                 colour=wx.Colour(200, 0, 0),
             )

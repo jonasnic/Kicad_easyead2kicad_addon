@@ -38,6 +38,7 @@ $archivePath = Join-Path $distDir $archiveName
 
 $metadataPath = Join-Path $repoRoot "metadata.json"
 $entrypointPath = Join-Path $repoRoot "easyeda2kicad_plugin.py"
+$bootstrapPath = Join-Path $repoRoot "__init__.py"
 $pluginsPath = Join-Path $repoRoot "plugins"
 $resourcesPath = Join-Path $repoRoot "resources"
 
@@ -59,6 +60,9 @@ Write-Host "Creating PCM staging layout..."
 New-Item -ItemType Directory -Path $stageDir | Out-Null
 try {
     Copy-Item -Path $entrypointPath -Destination (Join-Path $stageDir "easyeda2kicad_plugin.py")
+    if (Test-Path $bootstrapPath) {
+        Copy-Item -Path $bootstrapPath -Destination (Join-Path $stageDir "__init__.py")
+    }
     Copy-Item -Path $pluginsPath -Destination (Join-Path $stageDir "plugins") -Recurse
     Copy-Item -Path $resourcesPath -Destination (Join-Path $stageDir "resources") -Recurse
 
