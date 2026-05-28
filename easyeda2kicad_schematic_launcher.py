@@ -6,6 +6,7 @@ entries are not available in the Schematic Editor host.
 
 from __future__ import annotations
 
+import traceback
 import os
 import sys
 
@@ -19,8 +20,15 @@ for _path in (_ROOT_DIR, _PLUGINS_DIR):
 
 def main() -> int:
     import wx
-    from plugins.action_easyeda2kicad import _ensure_easyeda2kicad
-    from plugins.dialog_easyeda2kicad import EasyEDA2KiCadDialog
+
+    # Support both repository layout (plugins/*) and flattened PCM layout
+    # (action/dialog files directly in plugin root).
+    try:
+        from plugins.action_easyeda2kicad import _ensure_easyeda2kicad
+        from plugins.dialog_easyeda2kicad import EasyEDA2KiCadDialog
+    except Exception:
+        from action_easyeda2kicad import _ensure_easyeda2kicad
+        from dialog_easyeda2kicad import EasyEDA2KiCadDialog
 
     ok, err, python_exe = _ensure_easyeda2kicad()
     if not ok:
@@ -46,4 +54,29 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception:
+        details = traceback.format_exc()
+        message = (
+            "EasyEDA to KiCad launcher crashed while starting.\n\n"
+            "If this persists, share this traceback with the plugin developer.\n\n"
+            f"{details}"
+        )
+
+        # Prefer wx popup, but use Win32 MessageBox fallback when wx import fails.
+        try:
+            import wx
+
+            app = wx.GetApp()
+            if app is None:
+                app = wx.App(False)
+            wx.MessageBox(message, "EasyEDA to KiCad – Launch Error", wx.OK | wx.ICON_ERROR)
+        except Exception:
+            try:
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(0, message, "EasyEDA to KiCad – Launch Error", 0x10)
+            except Exception:
+                pass
+        raise

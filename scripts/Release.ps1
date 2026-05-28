@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Edit these values for each release.
-$Version = "0.8.2"
+$Version = "0.8.3"
 $ReleaseTag = ""
 $RepositoryJsonPath = "..\MyKicadPlugins\repository.json"
 
