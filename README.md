@@ -23,13 +23,16 @@ Powered by the open-source [easyeda2kicad](https://github.com/uPesy/easyeda2kica
 
 ### Via KiCad Plugin and Content Manager (recommended)
 
-The repository/feed file (`repository.json`) is separate from the downloadable plugin ZIP payload.
+This plugin is distributed through the **[JonasNic-Kicad-plugins](https://github.com/jonasnic/Kicad-plugins)** PCM repository, which acts as a central index for all jonasnic KiCad addons.
 
 1. Open KiCad → **Tools → Plugin and Content Manager**
-2. Add a custom repository URL and use:
-   - `https://raw.githubusercontent.com/jonasnic/Kicad_easyead2kicad_addon/main/repository.json`
-3. Install **EasyEDA to KiCad Importer** from that repository feed, *or*
-4. Click **Install from File…** and select the `.zip` release package
+2. Click **Manage** next to *Manage Custom Repositories*, then **+** (Add) and paste:
+   ```
+   https://raw.githubusercontent.com/jonasnic/Kicad-plugins/main/repository.json
+   ```
+3. Click **OK**, then **Refresh**
+4. Install **EasyEDA to KiCad Importer** from the list, *or*
+5. Click **Install from File…** and select the `.zip` release package
 
 ### Manual installation
 
@@ -122,6 +125,6 @@ MIT
 
 ## PCM publishing notes
 
-- Keep using the repository feed URL above in KiCad PCM.
-- For each release, upload a package asset named `easyeda2kicad_addon-v<version>.zip`.
-- Ensure each `download_url` in `metadata.json` / `repository.json` points to the matching GitHub Release asset.
+- The PCM repository index lives at [jonasnic/Kicad-plugins](https://github.com/jonasnic/Kicad-plugins). That is the URL users add to KiCad PCM.
+- For each release, upload a package asset named `easyeda2kicad_addon-v<version>.zip` to this repo's GitHub Releases.
+- Update `metadata.json` here with the new version and `download_url`, then update the `sha256` and `update_timestamp` in `Kicad-plugins/repository.json` to match.
