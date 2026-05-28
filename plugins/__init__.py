@@ -13,8 +13,12 @@ if _PLUGIN_DIR not in sys.path:
     sys.path.insert(0, _PLUGIN_DIR)
 
 try:
-    import pcbnew
     from action_easyeda2kicad import EasyEDA2KiCadPlugin
-    EasyEDA2KiCadPlugin().register()
+
+    plugin = EasyEDA2KiCadPlugin()
+    if hasattr(plugin, "register"):
+        plugin.register()
+    else:  # pragma: no cover
+        print("[EasyEDA2KiCad] No KiCad ActionPlugin host available for registration.")
 except Exception as exc:  # pragma: no cover
     print(f"[EasyEDA2KiCad] Failed to register plugin: {exc}")

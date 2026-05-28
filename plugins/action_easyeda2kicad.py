@@ -60,11 +60,36 @@ def _ensure_easyeda2kicad() -> tuple[bool, str]:
 # ActionPlugin
 # ---------------------------------------------------------------------------
 
-try:
-    import pcbnew  # available only inside KiCad
-    _BASE_CLASS = pcbnew.ActionPlugin
-except ImportError:  # allow importing outside KiCad for unit-testing
-    _BASE_CLASS = object  # type: ignore[assignment,misc]
+def _get_action_plugin_base() -> type:
+    """Return the available KiCad ActionPlugin base class.
+
+    KiCad may load plugins in different editor host processes. Prefer
+    `pcbnew.ActionPlugin` when available, but fall back to
+    `eeschema.ActionPlugin` so the plugin can also appear in Schematic Editor.
+    """
+    try:
+        import pcbnew  # available in PCB Editor host
+
+        base = getattr(pcbnew, "ActionPlugin", None)
+        if base is not None:
+            return base
+    except ImportError:
+        pass
+
+    try:
+        import eeschema  # available in Schematic Editor host
+
+        base = getattr(eeschema, "ActionPlugin", None)
+        if base is not None:
+            return base
+    except ImportError:
+        pass
+
+    # Allow importing outside KiCad (tests, linting, docs tooling).
+    return object
+
+
+_BASE_CLASS = _get_action_plugin_base()
 
 
 class EasyEDA2KiCadPlugin(_BASE_CLASS):
