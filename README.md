@@ -130,3 +130,28 @@ MIT
 - Update `metadata.json` here with the new version and `download_url`, then update the `sha256` and `update_timestamp` in `Kicad-plugins/repository.json` to match.
   - (Get-FileHash .\metadata.json -Algorithm SHA256).Hash.ToLower()
   - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+
+### Automated release helper (PowerShell)
+
+This repo includes a release helper script at `scripts/New-PcmRelease.ps1`.
+
+What it does:
+- Creates a PCM-safe ZIP payload in `dist/easyeda2kicad_addon-v<version>.zip`
+- Uses a temporary staging folder in your OS temp directory and cleans it automatically
+- Packages only runtime files (`easyeda2kicad_plugin.py`, `plugins/`, `resources/`, optional `README.md`)
+- Removes `__pycache__`, `*.pyc`, `*.pyo` from the staged package
+- Updates `metadata.json` with the provided version and release asset `download_url`
+- Optionally updates `repository.json` (`sha256` + `update_timestamp`)
+- Prints `DOWNLOAD_SHA256`, `DOWNLOAD_SIZE`, `INSTALL_SIZE`, etc. for CI usage
+
+Example usage:
+
+```powershell
+pwsh -File .\scripts\New-PcmRelease.ps1 -Version 0.1.2 `
+   -GithubRepo jonasnic/Kicad_easyead2kicad_addon `
+   -RepositoryJsonPath "..\MyKicadPlugins\repository.json"
+```
+
+After running:
+1. Upload `dist/easyeda2kicad_addon-v<version>.zip` as a GitHub Release asset under tag `v<version>`.
+2. Commit updated `metadata.json` (and `repository.json` if you passed `-RepositoryJsonPath`).
