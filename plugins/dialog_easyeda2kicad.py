@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
 import threading
+import ctypes
 from pathlib import Path
 
 import wx
@@ -20,6 +22,66 @@ import wx.adv
 logger = logging.getLogger(__name__)
 
 _DEFAULT_OUTPUT = str(Path.home() / "Documents" / "KiCad" / "easyeda2kicad")
+
+
+def _detect_project_output() -> str | None:
+    """Return a project-local default output path when available."""
+    kiprjmod = os.environ.get("KIPRJMOD", "").strip()
+    if kiprjmod and os.path.isdir(kiprjmod):
+        return os.path.join(kiprjmod, "easyeda2kicad")
+
+    try:
+        import pcbnew
+
+        board = pcbnew.GetBoard()
+        if board is not None:
+            board_file = board.GetFileName()
+            if board_file:
+                project_dir = os.path.dirname(board_file)
+                if os.path.isdir(project_dir):
+                    return os.path.join(project_dir, "easyeda2kicad")
+    except Exception:
+        pass
+
+    return None
+
+
+def _expand_kicad_vars(path_text: str) -> str:
+    """Expand common KiCad-style path variables in user-provided paths."""
+    expanded = os.path.expandvars(path_text)
+
+    # Handle ${VAR} and $(VAR) in addition to %VAR% style.
+    token_re = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$\(([A-Za-z_][A-Za-z0-9_]*)\)")
+
+    def _replace(match: re.Match[str]) -> str:
+        var_name = match.group(1) or match.group(2)
+        return os.environ.get(var_name, match.group(0))
+
+    return token_re.sub(_replace, expanded)
+
+
+def _to_cli_safe_path(path_text: str) -> str:
+    """Return a path representation that is robust for CLI tools on Windows."""
+    normalized = os.path.normpath(path_text)
+
+    if os.name != "nt" or " " not in normalized:
+        return normalized
+
+    # Some third-party tools mishandle spaced paths on Windows; use short path
+    # form as a compatibility fallback when available.
+    try:
+        get_short = ctypes.windll.kernel32.GetShortPathNameW
+        buf_len = get_short(normalized, None, 0)
+        if buf_len > 0:
+            buf = ctypes.create_unicode_buffer(buf_len)
+            if get_short(normalized, buf, buf_len) > 0:
+                short_path = buf.value
+                if short_path:
+                    return short_path
+    except Exception:
+        pass
+
+    return normalized
 
 
 def _resolve_python_executable() -> str:
@@ -86,10 +148,12 @@ class EasyEDA2KiCadDialog(wx.Dialog):
             parent,
             title="EasyEDA to KiCad Importer",
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
-            size=(560, 560),
+            size=(840, 560),
         )
         self._log_handler: _TextCtrlLogHandler | None = None
         self._python_executable = python_executable or _resolve_python_executable()
+        self._global_output = _DEFAULT_OUTPUT
+        self._project_output = _detect_project_output()
         self._build_ui()
         self.Centre()
 
@@ -140,12 +204,29 @@ class EasyEDA2KiCadDialog(wx.Dialog):
 
         folder_row = wx.BoxSizer(wx.HORIZONTAL)
         folder_label = wx.StaticText(panel, label="Folder:")
-        self.folder_ctrl = wx.TextCtrl(panel, value=_DEFAULT_OUTPUT)
+        self.folder_ctrl = wx.TextCtrl(panel, value=self._project_output or self._global_output)
         self.browse_btn = wx.Button(panel, label="Browse…")
         folder_row.Add(folder_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         folder_row.Add(self.folder_ctrl, 1, wx.EXPAND | wx.RIGHT, 8)
         folder_row.Add(self.browse_btn, 0)
         out_sizer.Add(folder_row, 0, wx.EXPAND | wx.ALL, 4)
+
+        preset_row = wx.BoxSizer(wx.HORIZONTAL)
+        preset_label = wx.StaticText(panel, label="Quick path:")
+        self.use_global_btn = wx.Button(panel, label="Use Global")
+        self.use_project_btn = wx.Button(panel, label="Use Project")
+        preset_row.Add(preset_label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        preset_row.Add(self.use_global_btn, 0, wx.RIGHT, 6)
+        preset_row.Add(self.use_project_btn, 0, wx.RIGHT, 10)
+
+        if self._project_output is None:
+            self.use_project_btn.Disable()
+            self.use_project_btn.SetToolTip("No active project path detected (KIPRJMOD/board file).")
+
+        var_hint = wx.StaticText(panel, label="Supports path vars: ${KIPRJMOD}, %USERPROFILE%")
+        var_hint.SetForegroundColour(wx.Colour(90, 90, 90))
+        preset_row.Add(var_hint, 0, wx.ALIGN_CENTER_VERTICAL)
+        out_sizer.Add(preset_row, 0, wx.EXPAND | wx.ALL, 4)
 
         libname_row = wx.BoxSizer(wx.HORIZONTAL)
         libname_label = wx.StaticText(panel, label="Library name:")
@@ -160,7 +241,13 @@ class EasyEDA2KiCadDialog(wx.Dialog):
         opt_box = wx.StaticBox(panel, label="Options")
         opt_sizer = wx.StaticBoxSizer(opt_box, wx.VERTICAL)
         self.overwrite_cb = wx.CheckBox(panel, label="Overwrite existing component")
+        self.create_dirs_cb = wx.CheckBox(panel, label="Create missing output folder(s)")
+        self.create_dirs_cb.SetValue(True)
+        self.create_dirs_cb.SetToolTip(
+            "When enabled, missing folders are created automatically before import."
+        )
         opt_sizer.Add(self.overwrite_cb, 0, wx.ALL, 4)
+        opt_sizer.Add(self.create_dirs_cb, 0, wx.ALL, 4)
         root.Add(opt_sizer, 0, wx.EXPAND | wx.ALL, 8)
 
         # ── Import button ─────────────────────────────────────────────
@@ -200,6 +287,8 @@ class EasyEDA2KiCadDialog(wx.Dialog):
         for cb in (self.symbol_cb, self.footprint_cb, self.model_3d_cb):
             cb.Bind(wx.EVT_CHECKBOX, self._on_individual_changed)
         self.browse_btn.Bind(wx.EVT_BUTTON, self._on_browse)
+        self.use_global_btn.Bind(wx.EVT_BUTTON, self._on_use_global_path)
+        self.use_project_btn.Bind(wx.EVT_BUTTON, self._on_use_project_path)
         self.import_btn.Bind(wx.EVT_BUTTON, self._on_import)
         close_btn.Bind(wx.EVT_BUTTON, lambda _e: self.EndModal(wx.ID_CLOSE))
 
@@ -233,6 +322,13 @@ class EasyEDA2KiCadDialog(wx.Dialog):
         ) as dlg:
             if dlg.ShowModal() == wx.ID_OK:
                 self.folder_ctrl.SetValue(dlg.GetPath())
+
+    def _on_use_global_path(self, _event: wx.CommandEvent) -> None:
+        self.folder_ctrl.SetValue(self._global_output)
+
+    def _on_use_project_path(self, _event: wx.CommandEvent) -> None:
+        if self._project_output:
+            self.folder_ctrl.SetValue(self._project_output)
 
     def _on_import(self, _event: wx.CommandEvent) -> None:
         lcsc_id = self.lcsc_id_ctrl.GetValue().strip()
@@ -271,9 +367,34 @@ class EasyEDA2KiCadDialog(wx.Dialog):
             )
             return
 
-        folder = self.folder_ctrl.GetValue().strip()
+        folder = _expand_kicad_vars(self.folder_ctrl.GetValue().strip())
         lib_name = self.libname_ctrl.GetValue().strip() or "easyeda2kicad"
         overwrite = self.overwrite_cb.GetValue()
+        create_dirs = self.create_dirs_cb.GetValue()
+
+        if create_dirs:
+            try:
+                os.makedirs(folder, exist_ok=True)
+            except OSError as exc:
+                wx.MessageBox(
+                    "Could not create output folder.\n\n"
+                    f"{folder}\n\n"
+                    f"{exc}",
+                    "Folder Creation Failed",
+                    wx.OK | wx.ICON_ERROR,
+                    self,
+                )
+                return
+        elif not os.path.isdir(folder):
+            wx.MessageBox(
+                "Output folder does not exist and auto-create is disabled.\n\n"
+                f"{folder}\n\n"
+                "Enable 'Create missing output folder(s)' or choose an existing folder.",
+                "Missing Output Folder",
+                wx.OK | wx.ICON_WARNING,
+                self,
+            )
+            return
 
         self.import_btn.Disable()
         self.log_ctrl.Clear()
@@ -304,12 +425,34 @@ class EasyEDA2KiCadDialog(wx.Dialog):
             output_path = str(Path(folder) / lib_name)
             python_exe = self._python_executable
 
+            # Ensure required folder tree exists at execution time too. This is
+            # intentionally repeated here because the import runs in a worker
+            # thread and user-edited paths can change between UI validation and
+            # subprocess launch.
+            output_folder = Path(folder)
+            created_paths: list[str] = []
+            if not output_folder.exists():
+                output_folder.mkdir(parents=True, exist_ok=True)
+                created_paths.append(str(output_folder))
+
+            output_parent = Path(output_path).parent
+            if not output_parent.exists():
+                output_parent.mkdir(parents=True, exist_ok=True)
+                created_paths.append(str(output_parent))
+
+            for created in created_paths:
+                self._log(f"Created folder: {created}")
+
+            cmd_output_path = _to_cli_safe_path(output_path)
+
             cmd: list[str] = [
                 python_exe,
                 "-m",
                 "easyeda2kicad",
-                f"--lcsc_id={lcsc_id}",
-                f"--output={output_path}",
+                "--lcsc_id",
+                lcsc_id,
+                "--output",
+                cmd_output_path,
             ]
 
             if do_symbol:

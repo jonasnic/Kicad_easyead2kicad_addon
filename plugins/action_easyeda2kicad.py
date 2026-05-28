@@ -109,23 +109,23 @@ def _get_action_plugin_base() -> type:
     `pcbnew.ActionPlugin` when available, but fall back to
     `eeschema.ActionPlugin` so the plugin can also appear in Schematic Editor.
     """
-    try:
-        import pcbnew  # available in PCB Editor host
+    # Prefer whichever KiCad host has already imported its module first.
+    for module_name in ("eeschema", "pcbnew"):
+        module = sys.modules.get(module_name)
+        if module is not None:
+            base = getattr(module, "ActionPlugin", None)
+            if base is not None:
+                return base
 
-        base = getattr(pcbnew, "ActionPlugin", None)
-        if base is not None:
-            return base
-    except ImportError:
-        pass
-
-    try:
-        import eeschema  # available in Schematic Editor host
-
-        base = getattr(eeschema, "ActionPlugin", None)
-        if base is not None:
-            return base
-    except ImportError:
-        pass
+    # Fall back to importing likely hosts (eeschema first, then pcbnew).
+    for module_name in ("eeschema", "pcbnew"):
+        try:
+            module = __import__(module_name)
+            base = getattr(module, "ActionPlugin", None)
+            if base is not None:
+                return base
+        except ImportError:
+            continue
 
     # Allow importing outside KiCad (tests, linting, docs tooling).
     return object
@@ -166,10 +166,35 @@ class EasyEDA2KiCadPlugin(_BASE_CLASS):
             )
             return
 
-        from dialog_easyeda2kicad import EasyEDA2KiCadDialog  # type: ignore[import]
+        launcher_path = os.path.normpath(
+            os.path.join(_PLUGIN_DIR, "..", "easyeda2kicad_schematic_launcher.py")
+        )
+        if not os.path.isfile(launcher_path):
+            wx.MessageBox(
+                "Could not find launcher script:\n\n"
+                f"{launcher_path}",
+                "EasyEDA to KiCad – Launch Error",
+                wx.OK | wx.ICON_ERROR,
+            )
+            return
 
-        top_windows = wx.GetTopLevelWindows()
-        parent = top_windows[0] if top_windows else None
-        dlg = EasyEDA2KiCadDialog(parent, python_executable=python_exe)
-        dlg.ShowModal()
-        dlg.Destroy()
+        creationflags = 0
+        if os.name == "nt":
+            creationflags = (
+                getattr(subprocess, "DETACHED_PROCESS", 0)
+                | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+            )
+
+        try:
+            subprocess.Popen(
+                [python_exe, launcher_path],
+                cwd=os.path.dirname(launcher_path),
+                creationflags=creationflags,
+            )
+        except Exception as exc:
+            wx.MessageBox(
+                "Could not launch importer window in a separate process.\n\n"
+                f"{exc}",
+                "EasyEDA to KiCad – Launch Error",
+                wx.OK | wx.ICON_ERROR,
+            )

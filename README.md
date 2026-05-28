@@ -13,6 +13,9 @@ Powered by the open-source [easyeda2kicad](https://github.com/uPesy/easyeda2kica
 - Paste a LCSC / JLCPCB component ID (e.g. `C2040`, `C294018`) and click **Import**
 - Checkboxes to choose what to import: **Symbol**, **Footprint**, **3D Model** — or tick **Full** to get all three
 - Configurable output library folder and library name
+- Quick path buttons for **Global** and **Project** output locations
+- Supports path variables in folder input (`${KIPRJMOD}`, `$(KIPRJMOD)`, `%USERPROFILE%`)
+- Optional auto-create for missing output folders (enabled by default)
 - **Overwrite** option to update an already-imported component
 - Coloured log output for easy troubleshooting
 - **Self-contained**: automatically installs `easyeda2kicad` via pip on first launch if not already present
@@ -37,41 +40,40 @@ This plugin is distributed through the **[JonasNic-Kicad-plugins](https://github
 ### Manual installation
 
 1. Clone or download this repository
-2. Copy the entire folder into your KiCad plugins directory:
-   - **Windows**: `%APPDATA%\kicad\<version>\scripting\plugins\`
+2. Copy/link the entire folder into your KiCad plugins directory:
+   - **Windows (common)**: `%APPDATA%\kicad\<version>\scripting\plugins\`
+   - **Windows (KiCad 10 user setup seen in this project)**: `Documents\KiCad\10.0\3rdparty\plugins\`
    - **Linux**: `~/.local/share/kicad/<version>/scripting/plugins/`
    - **macOS**: `~/Library/Preferences/kicad/<version>/scripting/plugins/`
 3. Restart KiCad
+
+Tip: for local development, use a directory junction/symlink so KiCad loads your
+working tree directly instead of copying files each time.
 
 ---
 
 ## First-time use
 
-The plugin will automatically install `easyeda2kicad` using pip and KiCad's bundled Python interpreter the first time you run it. An internet connection is required.
-
-You can also install it manually beforehand:
-
-```bash
-pip install easyeda2kicad
-```
-
-On Windows, use the **KiCad Command Prompt** (search in the Start Menu):
-
-```
-pip install easyeda2kicad
-```
+The plugin will automatically install `easyeda2kicad` the first time you run it.
+An internet connection is required on first launch.
 
 ---
 
 ## Usage
 
-1. Open KiCad **PCB Editor** (or **Schematic Editor**)
+1. Open KiCad **PCB Editor**
 2. Click **Tools → External Plugins → EasyEDA to KiCad**  
    (or use the toolbar button if visible)
 3. Enter a LCSC / JLCPCB component ID in the **Component ID** field
 4. Select what you want to import using the checkboxes
-5. Set the output folder and library name (defaults work out of the box)
+5. Set the output folder and library name:
+   - use **Use Global** for a shared user library folder
+   - use **Use Project** for project-local output (when project path is detected)
+   - keep **Create missing output folder(s)** enabled to auto-create folders
 6. Click **Import**
+
+Note for KiCad 10: this plugin is currently verified to appear in **PCB Editor**.
+Some installations do not expose the same External Plugins path in Schematic Editor.
 
 The imported library files will be placed in:
 
@@ -82,6 +84,21 @@ The imported library files will be placed in:
 | 3D Model | `<folder>/<lib_name>.3dshapes/` |
 
 After importing, add the library to KiCad via **Preferences → Manage Symbol Libraries** (and/or **Manage Footprint Libraries**).
+
+### Schematic Editor workaround (netlist/BOM launcher)
+
+If the plugin does not appear in **Schematic Editor → Tools → External Plugins**,
+you can launch the same importer dialog via Eeschema script hooks.
+
+Use the script:
+
+`easyeda2kicad_schematic_launcher.py`
+
+This file is included in the addon root and in packaged releases.
+
+In Eeschema, add/select this script in the netlist/BOM script tool, then run it.
+The netlist/BOM input/output arguments are ignored by this launcher; it only
+opens the EasyEDA importer dialog.
 
 ---
 
@@ -99,12 +116,17 @@ Run at least one import first to create the library files, then:
 
 ```
 Kicad_easyead2kicad_addon/
-├── repository.json            # PCM repository/feed entrypoint
+├── __init__.py                # Package bootstrap for KiCad discovery
+├── easyeda2kicad_plugin.py    # Main ActionPlugin entrypoint (PCB Editor)
+├── easyeda2kicad_schematic_launcher.py  # Eeschema netlist/BOM launcher workaround
 ├── metadata.json              # PCM package metadata
 ├── plugins/
-│   ├── __init__.py            # Plugin registration
+│   ├── __init__.py            # Plugin package exports
 │   ├── action_easyeda2kicad.py  # KiCad ActionPlugin class
 │   └── dialog_easyeda2kicad.py  # wxPython import dialog
+├── scripts/
+│   ├── New-PcmRelease.ps1     # Parameterized release builder/updater
+│   └── Release.ps1            # Simple no-parameter wrapper (edit values in file)
 └── resources/
     ├── icon.png               # Toolbar/menu icon (32×32)
     └── generate_icon.py       # Script to regenerate icon.png (requires Pillow)
@@ -143,6 +165,16 @@ What it does:
 - Updates `metadata.json` with the provided version and release asset `download_url`
 - Optionally updates `repository.json` (`sha256` + `update_timestamp`)
 - Prints `DOWNLOAD_SHA256`, `DOWNLOAD_SIZE`, `INSTALL_SIZE`, etc. for CI usage
+
+Simple local workflow script:
+
+- `scripts/Release.ps1`
+- Edit `Version`, `ReleaseTag` and `RepositoryJsonPath` inside the file.
+- Run:
+
+```powershell
+pwsh -File .\scripts\Release.ps1
+```
 
 Example usage:
 
