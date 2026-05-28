@@ -1,4 +1,4 @@
-# EasyEDA to KiCad – KiCad Addon
+# LCSC / JLCPCB Part Importer for KiCad
 
 A **KiCad Plugin and Content Manager (PCM) addon** for importing **LCSC** ([lcsc.com](https://www.lcsc.com/)) and **JLCPCB** ([jlcpcb.com](https://jlcpcb.com/)) parts into your KiCad libraries.
 
