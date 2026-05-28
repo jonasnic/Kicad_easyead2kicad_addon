@@ -59,15 +59,26 @@ if (-not (Test-Path $distDir)) {
 
 Write-Host "Creating PCM staging layout..."
 New-Item -ItemType Directory -Path $stageDir | Out-Null
+$stagePluginsDir = Join-Path $stageDir "plugins"
+New-Item -ItemType Directory -Path $stagePluginsDir | Out-Null
 try {
-    Copy-Item -Path $entrypointPath -Destination (Join-Path $stageDir "easyeda2kicad_plugin.py")
+    # KiCad PCM installs from the top-level "plugins" payload.
+    # Put runtime files there so they end up inside the installed plugin folder.
+    Copy-Item -Path $entrypointPath -Destination (Join-Path $stagePluginsDir "easyeda2kicad_plugin.py")
     if (Test-Path $schematicLauncherPath) {
-        Copy-Item -Path $schematicLauncherPath -Destination (Join-Path $stageDir "easyeda2kicad_schematic_launcher.py")
+        Copy-Item -Path $schematicLauncherPath -Destination (Join-Path $stagePluginsDir "easyeda2kicad_schematic_launcher.py")
     }
     if (Test-Path $bootstrapPath) {
-        Copy-Item -Path $bootstrapPath -Destination (Join-Path $stageDir "__init__.py")
+        Copy-Item -Path $bootstrapPath -Destination (Join-Path $stagePluginsDir "__init__.py")
     }
-    Copy-Item -Path $pluginsPath -Destination (Join-Path $stageDir "plugins") -Recurse
+    Copy-Item -Path (Join-Path $pluginsPath "*") -Destination $stagePluginsDir -Recurse
+
+    $runtimeIconPath = Join-Path $resourcesPath "icon.png"
+    if (Test-Path $runtimeIconPath) {
+        Copy-Item -Path $runtimeIconPath -Destination (Join-Path $stagePluginsDir "icon.png")
+    }
+
+    # Keep resources in archive for compatibility with previous layouts.
     Copy-Item -Path $resourcesPath -Destination (Join-Path $stageDir "resources") -Recurse
 
     $readmePath = Join-Path $repoRoot "README.md"

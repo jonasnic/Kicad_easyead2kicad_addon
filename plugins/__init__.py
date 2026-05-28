@@ -13,3 +13,17 @@ if _PLUGIN_DIR not in sys.path:
 
 from action_easyeda2kicad import EasyEDA2KiCadPlugin
 
+
+def _register_if_available() -> None:
+    """Register plugin when imported as KiCad's primary package entrypoint."""
+    try:
+        plugin = EasyEDA2KiCadPlugin()
+        if hasattr(plugin, "register"):
+            plugin.register()
+    except Exception:
+        # Keep import side effects non-fatal for non-KiCad contexts.
+        pass
+
+
+_register_if_available()
+

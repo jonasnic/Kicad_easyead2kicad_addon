@@ -146,12 +146,29 @@ class EasyEDA2KiCadPlugin(_BASE_CLASS):
             "into your KiCad library by entering its LCSC/JLCPCB ID."
         )
         self.show_toolbar_button = True
-        icon_path = os.path.join(_RESOURCES_DIR, "icon.png")
-        if os.path.isfile(icon_path):
-            self.icon_file_name = icon_path
+        icon_candidates = [
+            os.path.join(_PLUGIN_DIR, "icon.png"),
+            os.path.join(_RESOURCES_DIR, "icon.png"),
+            os.path.normpath(os.path.join(_PLUGIN_DIR, "..", "..", "resources", "icon.png")),
+        ]
+        for icon_path in icon_candidates:
+            if os.path.isfile(icon_path):
+                self.icon_file_name = icon_path
+                break
 
     def Run(self) -> None:  # noqa: N802
         import wx  # wx is bundled with KiCad
+
+        def _pick_parent_window() -> wx.Window | None:
+            active = wx.GetActiveWindow()
+            if active is not None:
+                return active
+
+            for win in wx.GetTopLevelWindows():
+                if win is not None and win.IsShownOnScreen():
+                    return win
+
+            return None
 
         ok, err, python_exe = _ensure_easyeda2kicad()
         if not ok:
@@ -167,17 +184,12 @@ class EasyEDA2KiCadPlugin(_BASE_CLASS):
             )
             return
 
-        launcher_path = os.path.normpath(
-            os.path.join(_PLUGIN_DIR, "..", "easyeda2kicad_schematic_launcher.py")
-        )
-        if not os.path.isfile(launcher_path):
-            wx.MessageBox(
-                "Could not find launcher script:\n\n"
-                f"{launcher_path}",
-                "EasyEDA to KiCad – Launch Error",
-                wx.OK | wx.ICON_ERROR,
-            )
-            return
+        launcher_candidates = [
+            os.path.normpath(os.path.join(_PLUGIN_DIR, "easyeda2kicad_schematic_launcher.py")),
+            os.path.normpath(os.path.join(_PLUGIN_DIR, "..", "easyeda2kicad_schematic_launcher.py")),
+            os.path.normpath(os.path.join(_PLUGIN_DIR, "..", "..", "easyeda2kicad_schematic_launcher.py")),
+        ]
+        launcher_path = next((p for p in launcher_candidates if os.path.isfile(p)), "")
 
         creationflags = 0
         if os.name == "nt":
@@ -186,16 +198,25 @@ class EasyEDA2KiCadPlugin(_BASE_CLASS):
                 | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
             )
 
-        try:
-            subprocess.Popen(
-                [python_exe, launcher_path],
-                cwd=os.path.dirname(launcher_path),
-                creationflags=creationflags,
-            )
-        except Exception as exc:
-            wx.MessageBox(
-                "Could not launch importer window in a separate process.\n\n"
-                f"{exc}",
-                "EasyEDA to KiCad – Launch Error",
-                wx.OK | wx.ICON_ERROR,
-            )
+        if launcher_path:
+            try:
+                subprocess.Popen(
+                    [python_exe, launcher_path],
+                    cwd=os.path.dirname(launcher_path),
+                    creationflags=creationflags,
+                )
+                return
+            except Exception:
+                # Fall back to in-process dialog launch below.
+                pass
+
+        # Fallback for flattened PCM installs where launcher script may not be present.
+        from dialog_easyeda2kicad import EasyEDA2KiCadDialog  # type: ignore[import]
+
+        parent = _pick_parent_window()
+        dlg = EasyEDA2KiCadDialog(parent, python_executable=python_exe)
+        if parent is not None:
+            dlg.CentreOnParent()
+        dlg.Raise()
+        dlg.SetFocus()
+        dlg.Show()
